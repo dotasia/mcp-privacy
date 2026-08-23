@@ -174,7 +174,10 @@ const urlCredentialsRedactor: Redactor = {
 // Well-known secret/key shapes. Deliberately limited to high-confidence
 // provider prefixes; generic "long random string" detection is too noisy.
 const SECRET_PATTERNS: Array<RegExp> = [
-	/\bsk-(?:proj-|ant-)?[A-Za-z0-9_\-]{16,}\b/g, // OpenAI / Anthropic style
+	/\bsk-(?:proj-|ant-)?[A-Za-z0-9_\-]{16,}\b/g, // OpenAI / Anthropic / OpenRouter (sk-or-v1-…)
+	/\bpplx-[A-Za-z0-9]{16,}\b/g, // Perplexity
+	/\bre_[A-Za-z0-9]{16,}\b/g, // Resend
+	/\bSK[0-9a-fA-F]{32}\b/g, // Twilio API key
 	/\b(?:sk|pk|rk)_(?:live|test)_[A-Za-z0-9]{10,}\b/g, // Stripe style
 	/\bAKIA[0-9A-Z]{16}\b/g, // AWS access key id
 	/\bASIA[0-9A-Z]{16}\b/g, // AWS temporary access key id

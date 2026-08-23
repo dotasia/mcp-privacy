@@ -135,6 +135,29 @@ describe('secret_key', () => {
 		const r = redact('Token ghp_ABCDEFghijklmnop1234567890QRSTUVWXYZ0 aktiv.');
 		expect(r.text).toContain('[SECRET_1]');
 	});
+	it('redacts Perplexity keys', () => {
+		const r = redact('Mein Schlüssel pplx-9f8e7d6c5b4a39281716 ist geheim.');
+		expect(r.text).toContain('[SECRET_1]');
+		expect(r.text).not.toContain('pplx-9f8e7d6c5b4a39281716');
+	});
+	it('redacts OpenRouter keys', () => {
+		const r = redact('Der Key sk-or-v1-a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6 darf nicht raus.');
+		expect(r.text).toContain('[SECRET_1]');
+		expect(r.text).not.toContain('sk-or-v1-');
+	});
+	it('redacts Resend keys', () => {
+		const r = redact('RESEND_API_KEY=re_A1b2C3d4E5f6G7h8I9j0K1l2 gesetzt.');
+		expect(r.text).toContain('[SECRET_1]');
+		expect(r.text).not.toContain('re_A1b2C3d4E5f6G7h8I9j0K1l2');
+	});
+	it('redacts Twilio API keys', () => {
+		// Assembled at runtime so the fixture never appears as one contiguous
+		// literal; GitHub push protection would otherwise flag it as a live key.
+		const twilioKey = 'SK36a1b2c3d4e5f6' + 'a7b8c9d0e1f2a3b4c5';
+		const r = redact(`TWILIO_API_KEY=${twilioKey} aktiv.`);
+		expect(r.text).toContain('[SECRET_1]');
+		expect(r.text).not.toContain(twilioKey);
+	});
 });
 
 describe('jwt', () => {
