@@ -1,5 +1,5 @@
 import { PrivacyConfig } from './config';
-import { REDACTORS } from './redactors';
+import { REDACTORS, Redactor } from './redactors';
 
 export interface Finding {
 	category: string;
@@ -7,12 +7,16 @@ export interface Finding {
 }
 
 export interface SanitizeResult {
-	// Text to send upstream. Equals the input unless mode is 'redact' and
-	// something matched.
+	// Text to send upstream. Equals the input unless mode is 'redact' and a
+	// non-warn category matched.
 	text: string;
-	// Detected categories and match counts. Never contains the matched values.
+	// Everything detected, including warn-only categories. Never contains the
+	// matched values. Suitable for logging.
 	findings: Finding[];
-	// True only in 'block' mode when at least one match was found. The caller
+	// Only the detections that were actually replaced (excludes warn-only
+	// categories). Use for user-facing notes.
+	redactedFindings: Finding[];
+	// True only in 'block' mode when a non-warn category matched. The caller
 	// must refuse the request and never send it upstream.
 	blocked: boolean;
 	// True when matches were found and removed (mode 'redact').
@@ -46,6 +50,23 @@ class PlaceholderAllocator {
 	}
 }
 
+function runRedactors(text: string, redactors: Redactor[]): { text: string; findings: Finding[] } {
+	const findings = new Map<string, number>();
+	const alloc = new PlaceholderAllocator();
+	let working = text;
+	for (const redactor of redactors) {
+		const res = redactor.redact(working, alloc.make(redactor.label));
+		if (res.count > 0) {
+			findings.set(redactor.id, (findings.get(redactor.id) ?? 0) + res.count);
+			working = res.text;
+		}
+	}
+	const findingList: Finding[] = [...findings.entries()]
+		.map(([category, count]) => ({ category, count }))
+		.sort((a, b) => a.category.localeCompare(b.category));
+	return { text: working, findings: findingList };
+}
+
 /**
  * Scans a text for known PII/secret categories.
  *
@@ -53,42 +74,49 @@ class PlaceholderAllocator {
  * - off:    no scanning, input returned unchanged
  * - warn:   detect only; text unchanged, findings reported for logging
  * - redact: replace matches with placeholders, findings reported
- * - block:  detect only; blocked=true when anything matched
+ * - block:  detect only; blocked=true when a non-warn category matched
+ *
+ * Categories listed in cfg.warnCategories are always detect-only: they appear
+ * in `findings` but are never replaced and never trigger `blocked`.
  */
 export function sanitizeText(text: string, cfg: PrivacyConfig): SanitizeResult {
 	if (cfg.mode === 'off' || text.length === 0) {
-		return { text, findings: [], blocked: false, redacted: false };
+		return { text, findings: [], redactedFindings: [], blocked: false, redacted: false };
 	}
 
-	const findings = new Map<string, number>();
-	const alloc = new PlaceholderAllocator();
+	const enabled = REDACTORS.filter((r) => !cfg.disabledCategories.has(r.id));
 
-	let working = text;
-	for (const redactor of REDACTORS) {
-		if (cfg.disabledCategories.has(redactor.id)) continue;
-		const res = redactor.redact(working, alloc.make(redactor.label));
-		if (res.count > 0) {
-			findings.set(redactor.id, (findings.get(redactor.id) ?? 0) + res.count);
-			working = res.text;
-		}
+	// Full pass: everything detectable, for reporting/logging.
+	const full = runRedactors(text, enabled);
+	if (full.findings.length === 0) {
+		return { text, findings: [], redactedFindings: [], blocked: false, redacted: false };
 	}
 
-	const findingList: Finding[] = [...findings.entries()]
-		.map(([category, count]) => ({ category, count }))
-		.sort((a, b) => a.category.localeCompare(b.category));
-
-	if (findingList.length === 0) {
-		return { text, findings: [], blocked: false, redacted: false };
-	}
+	// Effective pass: warn-only categories stay untouched.
+	const enforceable = enabled.filter((r) => !cfg.warnCategories.has(r.id));
+	const effective =
+		enforceable.length === enabled.length ? full : runRedactors(text, enforceable);
 
 	if (cfg.mode === 'block') {
-		return { text, findings: findingList, blocked: true, redacted: false };
+		return {
+			text,
+			findings: full.findings,
+			redactedFindings: [],
+			blocked: effective.findings.length > 0,
+			redacted: false,
+		};
 	}
 	if (cfg.mode === 'warn') {
-		return { text, findings: findingList, blocked: false, redacted: false };
+		return { text, findings: full.findings, redactedFindings: [], blocked: false, redacted: false };
 	}
 	// redact
-	return { text: working, findings: findingList, blocked: false, redacted: true };
+	return {
+		text: effective.text,
+		findings: full.findings,
+		redactedFindings: effective.findings,
+		blocked: false,
+		redacted: effective.findings.length > 0,
+	};
 }
 
 /**

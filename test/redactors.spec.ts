@@ -3,7 +3,7 @@ import { isValidIban, luhnCheck, isValidDeTaxId, REDACTORS, REDACTOR_IDS } from 
 import { sanitizeText } from '../src/sanitize';
 
 const redact = (text: string) =>
-	sanitizeText(text, { mode: 'redact', disabledCategories: new Set() });
+	sanitizeText(text, { mode: 'redact', disabledCategories: new Set(), warnCategories: new Set() });
 
 describe('checksum helpers', () => {
 	it('validates a correct IBAN (mod-97)', () => {

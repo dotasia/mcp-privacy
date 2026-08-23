@@ -6,6 +6,7 @@ describe('parsePrivacyConfig', () => {
 		const cfg = parsePrivacyConfig({});
 		expect(cfg.mode).toBe('warn');
 		expect(cfg.disabledCategories.size).toBe(0);
+		expect(cfg.warnCategories.size).toBe(0);
 	});
 
 	it('accepts each valid mode (case-insensitive)', () => {
@@ -30,5 +31,12 @@ describe('parsePrivacyConfig', () => {
 	it('ignores empty disabled entries', () => {
 		const cfg = parsePrivacyConfig({ PRIVACY_DISABLED_CATEGORIES: ',,,' });
 		expect(cfg.disabledCategories.size).toBe(0);
+	});
+
+	it('parses warn-only categories', () => {
+		const cfg = parsePrivacyConfig({ PRIVACY_WARN_CATEGORIES: 'email, Phone' });
+		expect(cfg.warnCategories.has('email')).toBe(true);
+		expect(cfg.warnCategories.has('phone')).toBe(true);
+		expect(cfg.warnCategories.size).toBe(2);
 	});
 });

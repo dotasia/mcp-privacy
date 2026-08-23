@@ -53,7 +53,8 @@ if (result.blocked) {
 }
 
 const outgoing = result.text; // im Modus 'redact' bereits anonymisiert
-const note = result.redacted ? formatPrivacyNote(result.findings) : undefined;
+// Hinweis nur aus tatsächlich ersetzten Funden bauen (ohne Warn-Kategorien)
+const note = result.redacted ? formatPrivacyNote(result.redactedFindings) : undefined;
 ```
 
 ## Modi (`PRIVACY_MODE`)
@@ -94,6 +95,22 @@ zweite@adresse.de                     ->  [EMAIL_2]
 
 Einzelne Kategorien lassen sich per `PRIVACY_DISABLED_CATEGORIES` abschalten
 (kommagetrennte IDs), z. B. `PRIVACY_DISABLED_CATEGORIES=phone`.
+
+### Warn-Kategorien (`PRIVACY_WARN_CATEGORIES`)
+
+Kategorien, die zwar erkannt und gemeldet, aber **niemals ersetzt oder
+blockiert** werden sollen – z. B. wenn ein MCP E-Mail-Adressen für seine
+Aufgabe braucht:
+
+```
+PRIVACY_MODE=redact
+PRIVACY_WARN_CATEGORIES=email
+```
+
+Effekt: Alle Kategorien außer `email` werden ersetzt; `email` erscheint nur in
+`findings` (Logging), bleibt im Text aber unangetastet und löst im Modus
+`block` auch keine Blockade aus. `result.findings` enthält alle Funde,
+`result.redactedFindings` nur die tatsächlich ersetzten.
 
 ## Bekannte Grenzen
 

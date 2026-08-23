@@ -2,9 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { sanitizeText, formatPrivacyNote } from '../src/sanitize';
 import type { PrivacyConfig } from '../src/config';
 
-const cfg = (mode: PrivacyConfig['mode'], disabled: string[] = []): PrivacyConfig => ({
+const cfg = (mode: PrivacyConfig['mode'], disabled: string[] = [], warn: string[] = []): PrivacyConfig => ({
 	mode,
 	disabledCategories: new Set(disabled),
+	warnCategories: new Set(warn),
 });
 
 const SAMPLE = 'Kontakt max@example.com, IBAN DE89 3704 0044 0532 0130 00.';
@@ -66,6 +67,45 @@ describe('disabled categories', () => {
 		expect(r.text).toContain('max@example.com');
 		expect(r.text).toContain('[IBAN_1]');
 		expect(r.findings.map((f) => f.category)).toEqual(['iban']);
+	});
+});
+
+describe('warn-only categories', () => {
+	it('redact: warn category is detected but not replaced', () => {
+		const r = sanitizeText(SAMPLE, cfg('redact', [], ['email']));
+		expect(r.redacted).toBe(true);
+		expect(r.text).toContain('max@example.com');
+		expect(r.text).toContain('[IBAN_1]');
+		// full detection list (for logging) includes both
+		expect(r.findings.map((f) => f.category).sort()).toEqual(['email', 'iban']);
+		// replaced list excludes the warn-only category
+		expect(r.redactedFindings.map((f) => f.category)).toEqual(['iban']);
+	});
+
+	it('redact: text with only warn-category matches stays unchanged', () => {
+		const input = 'Nur eine Adresse: max@example.com';
+		const r = sanitizeText(input, cfg('redact', [], ['email']));
+		expect(r.text).toBe(input);
+		expect(r.redacted).toBe(false);
+		expect(r.redactedFindings).toEqual([]);
+		expect(r.findings).toEqual([{ category: 'email', count: 1 }]);
+	});
+
+	it('block: warn-category matches do not trigger blocking', () => {
+		const onlyEmail = sanitizeText('Nur max@example.com hier.', cfg('block', [], ['email']));
+		expect(onlyEmail.blocked).toBe(false);
+		expect(onlyEmail.findings).toEqual([{ category: 'email', count: 1 }]);
+
+		const mixed = sanitizeText(SAMPLE, cfg('block', [], ['email']));
+		expect(mixed.blocked).toBe(true);
+	});
+
+	it('the privacy note only counts replaced findings', () => {
+		const r = sanitizeText(SAMPLE, cfg('redact', [], ['email']));
+		const note = formatPrivacyNote(r.redactedFindings);
+		expect(note).toContain('1 vertrauliche Angabe(n)');
+		expect(note).toContain('iban: 1');
+		expect(note).not.toContain('email');
 	});
 });
 
