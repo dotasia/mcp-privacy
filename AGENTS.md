@@ -12,7 +12,6 @@ Kein Worker, sondern Bibliothek `@dotasia/mcp-privacy` (TypeScript, Quellcode di
 
 - Keine `wrangler`-Config, kein Worker, keine Check-Runs, keine GitHub Actions → nichts zu deployen und keine Cloudflare-Account-Zuordnung.
 - Verteilung erfolgt über Git-Tags: Konsumenten (`mcp-openai`, `mcp-pplx`) binden `github:dotasia/mcp-privacy#vX.Y.Z` ein (Lockfile `git+ssh`). Aktuelles Tag: `v0.3.0` (entspricht `package.json`-Version). Änderungen werden für Konsumenten erst mit neuem Tag plus Anpassung von deren `package.json`/Lockfile wirksam; Tags nur auf ausdrücklichen Auftrag setzen oder pushen.
-- Das README-Beispiel mit `#v0.1.0` ist veraltet.
 
 ## Architektur
 

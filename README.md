@@ -25,7 +25,7 @@ Das Paket wird als GitHub-Dependency eingebunden (kein npm-Account nötig):
 // package.json
 {
   "dependencies": {
-    "@dotasia/mcp-privacy": "github:dotasia/mcp-privacy#v0.1.0"
+    "@dotasia/mcp-privacy": "github:dotasia/mcp-privacy#v0.3.0"
   }
 }
 ```
